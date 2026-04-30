@@ -1,0 +1,133 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+
+interface AddSiteDialogProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function AddSiteDialog({ open, onClose }: AddSiteDialogProps) {
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [description, setDescription] = useState('');
+  const [githubRepo, setGithubRepo] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  function resetForm() {
+    setName('');
+    setUrl('');
+    setDescription('');
+    setGithubRepo('');
+    setError('');
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          url,
+          description: description || undefined,
+          github_repo: githubRepo || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Failed to add site');
+        return;
+      }
+
+      resetForm();
+      onClose();
+      router.refresh();
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onClose={() => {
+        resetForm();
+        onClose();
+      }}
+      title="Add Site"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          id="site-name"
+          label="Name"
+          placeholder="My Website"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+
+        <Input
+          id="site-url"
+          label="URL"
+          type="url"
+          placeholder="https://example.com"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          required
+        />
+
+        <Input
+          id="site-description"
+          label="Description (optional)"
+          placeholder="Production website"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+
+        <Input
+          id="site-github"
+          label="GitHub Repo (optional)"
+          placeholder="owner/repo"
+          value={githubRepo}
+          onChange={(e) => setGithubRepo(e.target.value)}
+        />
+
+        {error && (
+          <div className="px-3 py-2 bg-danger/10 border border-danger/20 rounded-lg text-danger text-sm">
+            {error}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              resetForm();
+              onClose();
+            }}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" loading={loading}>
+            Add Site
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}

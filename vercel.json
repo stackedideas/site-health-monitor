@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/health-checks",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/audit-dependencies",
+      "schedule": "0 9 * * 1"
+    }
+  ]
+}
