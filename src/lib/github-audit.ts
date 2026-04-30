@@ -6,7 +6,13 @@ interface DependabotAlert {
     manifest_path: string;
   };
   security_advisory: {
+    ghsa_id: string;
+    cve_id: string | null;
+    summary: string;
+    description: string;
     severity: string;
+    cvss: { score: number; vector_string: string } | null;
+    references: Array<{ url: string }>;
   };
   security_vulnerability: {
     vulnerable_version_range: string;
@@ -14,11 +20,22 @@ interface DependabotAlert {
   };
 }
 
+export interface AdvisoryDetails {
+  summary: string;
+  description: string;
+  cve_id: string | null;
+  ghsa_id: string;
+  ghsa_url: string;
+  cvss_score: number | null;
+  references: string[];
+}
+
 export interface AuditVulnerability {
   package_name: string;
   current_version: string | null;
   latest_version: string | null;
   severity: 'critical' | 'high' | 'medium' | 'low';
+  details: AdvisoryDetails;
 }
 
 function normaliseSeverity(raw: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -88,7 +105,6 @@ export async function fetchDependabotAlerts(
   }
 
   const alerts: DependabotAlert[] = await res.json();
-
   const installedVersions = await fetchInstalledVersions(owner, repo, token);
 
   return alerts
@@ -97,12 +113,22 @@ export async function fetchDependabotAlerts(
       const name = a.dependency.package.name;
       const declared = installedVersions[name] ?? null;
       const fixedIn = a.security_vulnerability.first_patched_version?.identifier ?? null;
+      const advisory = a.security_advisory;
 
       return {
         package_name: name,
         current_version: declared ?? a.security_vulnerability.vulnerable_version_range ?? null,
         latest_version: fixedIn,
-        severity: normaliseSeverity(a.security_advisory.severity),
+        severity: normaliseSeverity(advisory.severity),
+        details: {
+          summary: advisory.summary,
+          description: advisory.description,
+          cve_id: advisory.cve_id ?? null,
+          ghsa_id: advisory.ghsa_id,
+          ghsa_url: `https://github.com/advisories/${advisory.ghsa_id}`,
+          cvss_score: advisory.cvss?.score ?? null,
+          references: advisory.references.map((r) => r.url),
+        },
       };
     });
 }

@@ -40,6 +40,16 @@ export interface Alert {
   created_at: string;
 }
 
+export interface DependencyDetails {
+  summary: string;
+  description: string;
+  cve_id: string | null;
+  ghsa_id: string;
+  ghsa_url: string;
+  cvss_score: number | null;
+  references: string[];
+}
+
 export interface Dependency {
   id: string;
   site_id: string;
@@ -47,6 +57,7 @@ export interface Dependency {
   current_version: string | null;
   latest_version: string | null;
   severity: 'critical' | 'high' | 'medium' | 'low' | null;
+  details: DependencyDetails | null;
   created_at: string;
   updated_at: string;
 }

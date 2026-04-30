@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import type { Site, Dependency } from '@/lib/types';
+import { Dialog } from '@/components/ui/dialog';
+import type { Site, Dependency, DependencyDetails } from '@/lib/types';
 
 interface DependenciesTabProps {
   site: Site;
@@ -13,7 +14,7 @@ type KnownSeverity = NonNullable<Dependency['severity']>;
 const SEVERITY_ORDER: KnownSeverity[] = ['critical', 'high', 'medium', 'low'];
 
 const severityConfig: Record<
-  NonNullable<Dependency['severity']>,
+  KnownSeverity,
   { label: string; dot: string; bg: string; text: string; border: string }
 > = {
   critical: {
@@ -46,7 +47,7 @@ const severityConfig: Record<
   },
 };
 
-function SeverityBadge({ severity }: { severity: NonNullable<Dependency['severity']> }) {
+function SeverityBadge({ severity }: { severity: KnownSeverity }) {
   const cfg = severityConfig[severity];
   return (
     <span
@@ -75,6 +76,96 @@ function groupBySeverity(
   }));
 }
 
+function VulnerabilityModal({
+  dep,
+  onClose,
+}: {
+  dep: Dependency;
+  onClose: () => void;
+}) {
+  const d = dep.details as DependencyDetails | null;
+  const severity = dep.severity as KnownSeverity;
+  const cfg = severityConfig[severity];
+
+  return (
+    <Dialog open onClose={onClose} title={dep.package_name}>
+      <div className="space-y-4">
+        {/* Severity + IDs */}
+        <div className="flex flex-wrap items-center gap-2">
+          <SeverityBadge severity={severity} />
+          {d?.cve_id && (
+            <span className="text-xs font-mono bg-surface-hover text-text-secondary px-2 py-0.5 rounded-full">
+              {d.cve_id}
+            </span>
+          )}
+          {d?.cvss_score != null && (
+            <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>
+              CVSS {d.cvss_score.toFixed(1)}
+            </span>
+          )}
+        </div>
+
+        {/* Summary */}
+        {d?.summary && (
+          <p className="text-sm text-foreground font-medium">{d.summary}</p>
+        )}
+
+        {/* Affected / Fix version */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-surface-hover rounded-lg px-3 py-2.5">
+            <p className="text-xs text-text-secondary mb-1">Affected range</p>
+            <p className="text-sm font-mono text-foreground">{dep.current_version ?? '—'}</p>
+          </div>
+          <div className="bg-surface-hover rounded-lg px-3 py-2.5">
+            <p className="text-xs text-text-secondary mb-1">Fix in</p>
+            <p className="text-sm font-mono text-success">{dep.latest_version ?? '—'}</p>
+          </div>
+        </div>
+
+        {/* Description */}
+        {d?.description && (
+          <div>
+            <p className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-1.5">
+              Description
+            </p>
+            <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line line-clamp-6">
+              {d.description}
+            </p>
+          </div>
+        )}
+
+        {/* Links */}
+        {d && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <a
+              href={d.ghsa_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-accent hover:underline"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
+              View on GitHub Advisory DB
+            </a>
+            {d.references.slice(0, 2).map((url) => (
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-foreground hover:underline truncate max-w-50"
+              >
+                {new URL(url).hostname}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </Dialog>
+  );
+}
+
 export function DependenciesTab({ site }: DependenciesTabProps) {
   const [deps, setDeps] = useState<Dependency[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +173,7 @@ export function DependenciesTab({ site }: DependenciesTabProps) {
   const [error, setError] = useState<string | null>(null);
   const [auditError, setAuditError] = useState<string | null>(null);
   const [lastAudited, setLastAudited] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Dependency | null>(null);
 
   const fetchDeps = useCallback(async () => {
     try {
@@ -116,7 +208,6 @@ export function DependenciesTab({ site }: DependenciesTabProps) {
         setAuditError(body.error ?? 'Audit failed');
         return;
       }
-      // Refresh the list
       setLoading(true);
       await fetchDeps();
     } catch {
@@ -131,6 +222,8 @@ export function DependenciesTab({ site }: DependenciesTabProps) {
 
   return (
     <div className="space-y-4">
+      {selected && <VulnerabilityModal dep={selected} onClose={() => setSelected(null)} />}
+
       {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
@@ -193,13 +286,7 @@ export function DependenciesTab({ site }: DependenciesTabProps) {
       {!loading && !error && total === 0 && (
         <div className="bg-surface border border-border rounded-xl p-12 text-center">
           <div className="w-12 h-12 rounded-xl bg-surface-hover mx-auto mb-3 flex items-center justify-center">
-            <svg
-              className="w-6 h-6 text-success"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
+            <svg className="w-6 h-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
           </div>
@@ -228,31 +315,24 @@ export function DependenciesTab({ site }: DependenciesTabProps) {
                 <table className="w-full bg-surface">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left text-xs font-medium text-text-secondary px-4 py-2.5">
-                        Package
-                      </th>
-                      <th className="text-left text-xs font-medium text-text-secondary px-4 py-2.5">
-                        Installed / Affected Range
-                      </th>
-                      <th className="text-left text-xs font-medium text-text-secondary px-4 py-2.5">
-                        Fix In
-                      </th>
+                      <th className="text-left text-xs font-medium text-text-secondary px-4 py-2.5">Package</th>
+                      <th className="text-left text-xs font-medium text-text-secondary px-4 py-2.5">Installed / Affected Range</th>
+                      <th className="text-left text-xs font-medium text-text-secondary px-4 py-2.5">Fix In</th>
+                      <th className="px-4 py-2.5" />
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((dep) => (
                       <tr
                         key={dep.id}
-                        className="border-b border-border last:border-0 hover:bg-surface-hover/50"
+                        onClick={() => setSelected(dep)}
+                        className="border-b border-border last:border-0 hover:bg-surface-hover/50 cursor-pointer"
                       >
-                        <td className="px-4 py-3 text-sm font-mono text-foreground">
-                          {dep.package_name}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-mono text-text-secondary">
-                          {dep.current_version ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-mono text-success">
-                          {dep.latest_version ?? '—'}
+                        <td className="px-4 py-3 text-sm font-mono text-foreground">{dep.package_name}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-text-secondary">{dep.current_version ?? '—'}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-success">{dep.latest_version ?? '—'}</td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="text-xs text-text-secondary hover:text-foreground">Details →</span>
                         </td>
                       </tr>
                     ))}
