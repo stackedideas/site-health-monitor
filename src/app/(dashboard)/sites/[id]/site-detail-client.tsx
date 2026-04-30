@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RunCheckButton } from '@/components/sites/run-check-button';
 import { SiteTabs } from '@/components/sites/site-tabs';
+import { EditSiteDialog } from '@/components/dashboard/edit-site-dialog';
 import type { Site, HealthCheck } from '@/lib/types';
 
 interface SiteDetailClientProps {
@@ -16,6 +17,7 @@ interface SiteDetailClientProps {
 
 export function SiteDetailClient({ site, checks }: SiteDetailClientProps) {
   const [deleting, setDeleting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const router = useRouter();
 
   async function handleDelete() {
@@ -68,11 +70,16 @@ export function SiteDetailClient({ site, checks }: SiteDetailClientProps) {
 
         <div className="flex items-center gap-2">
           <RunCheckButton siteId={site.id} />
+          <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+            Edit
+          </Button>
           <Button variant="danger" size="sm" onClick={handleDelete} loading={deleting}>
             Delete
           </Button>
         </div>
       </div>
+
+      <EditSiteDialog site={site} open={editOpen} onClose={() => setEditOpen(false)} />
 
       {/* Tabs */}
       <SiteTabs site={site} checks={checks} />
