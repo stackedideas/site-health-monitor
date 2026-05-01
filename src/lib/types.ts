@@ -103,6 +103,7 @@ export interface CreateSiteRequest {
   description?: string;
   github_repo?: string;
   check_interval_minutes?: number;
+  client_id?: string | null;
 }
 
 export interface UpdateSiteRequest {
@@ -112,6 +113,7 @@ export interface UpdateSiteRequest {
   github_repo?: string;
   check_interval_minutes?: number;
   is_active?: boolean;
+  client_id?: string | null;
 }
 
 export interface HealthCheckResult {

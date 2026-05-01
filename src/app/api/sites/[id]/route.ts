@@ -25,6 +25,7 @@ export async function PUT(
     if (body.github_repo !== undefined) updates.github_repo = body.github_repo?.trim() || null;
     if (body.check_interval_minutes !== undefined) updates.check_interval_minutes = body.check_interval_minutes;
     if (body.is_active !== undefined) updates.is_active = body.is_active;
+    if (body.client_id !== undefined) updates.client_id = body.client_id;
 
     const supabase = await createClient();
     const { data, error } = await supabase

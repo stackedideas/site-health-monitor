@@ -46,6 +46,7 @@ export async function POST(request: Request) {
         description: body.description?.trim() || null,
         github_repo: body.github_repo?.trim() || null,
         check_interval_minutes: body.check_interval_minutes || 5,
+        client_id: body.client_id || null,
       })
       .select()
       .single();
