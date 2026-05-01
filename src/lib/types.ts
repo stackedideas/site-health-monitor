@@ -1,4 +1,18 @@
 export type SiteStatus = 'healthy' | 'degraded' | 'down' | 'unknown';
+export type ClientStatus = 'active' | 'maintenance' | 'paused' | 'complete';
+
+export interface Client {
+  id: string;
+  name: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  contract_start: string | null;
+  monthly_retainer: number | null;
+  status: ClientStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
 export type CheckStatus = 'healthy' | 'degraded' | 'down';
 export type AlertType = 'down' | 'degraded' | 'recovered';
 export type DependencyType = 'api' | 'database' | 'cdn' | 'dns' | 'other';
@@ -13,6 +27,7 @@ export interface Site {
   is_active: boolean;
   current_status: SiteStatus;
   last_checked_at: string | null;
+  client_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,6 +75,26 @@ export interface Dependency {
   details: DependencyDetails | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CreateClientRequest {
+  name: string;
+  contact_name?: string;
+  contact_email?: string;
+  contract_start?: string;
+  monthly_retainer?: number;
+  status?: ClientStatus;
+  notes?: string;
+}
+
+export interface UpdateClientRequest {
+  name?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contract_start?: string;
+  monthly_retainer?: number;
+  status?: ClientStatus;
+  notes?: string;
 }
 
 export interface CreateSiteRequest {
